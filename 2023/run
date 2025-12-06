@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+duckdb < day01.sql
