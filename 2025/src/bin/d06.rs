@@ -1,59 +1,56 @@
-fn run(input: &str) -> (usize, usize) {
-    let bytes = input.as_bytes();
-    let width = input.lines().next().unwrap().len();
-    let height = input.len() / (width + 1) - 1;
+fn run(input: &[u8]) -> (usize, usize) {
+    let (mut p1, mut p2) = (0, 0);
 
-    let ops = input[input.len() - width - 1..]
-        .chars()
-        .filter(|x| !x.is_whitespace())
-        .map(|op| match op {
-            '*' => |acc, val| acc * val,
-            '+' => |acc, val| acc + val,
-            op => panic!("unknown op {op}"),
-        })
-        .collect::<Vec<_>>();
+    let line_width = input.iter().position(|&b| b == b'\n').unwrap() + 1;
+    let (nums, ops) = input.split_at(input.len() - line_width);
 
-    let nums_p1 = input
-        .split_whitespace()
-        .filter_map(|str| str.parse().ok())
-        .collect::<Vec<usize>>();
+    let height = nums.len() / line_width;
 
-    let nums_p2 = (0..width)
-        .map(|c| {
-            (0..height)
-                .map(|r| bytes[r * (width + 1) + c])
-                .filter_map(|c| {
-                    c.is_ascii_digit()
-                        .then_some((c.saturating_sub(b'0')) as usize)
-                })
-                .rev()
-                .enumerate()
-                .fold(0, |acc, (exp, digit)| acc + digit * 10usize.pow(exp as u32))
-        })
-        .collect::<Vec<_>>();
+    let mut offset = 0;
+    while offset < line_width {
+        let op = match ops[offset] {
+            b'*' => |acc, x| acc * x,
+            b'+' => |acc, x| acc + x,
+            _ => unreachable!(),
+        };
 
-    let p1 = (0..ops.len())
-        .map(|col| {
-            (0..height)
-                .map(|row| nums_p1[row * ops.len() + col])
-                .reduce(ops[col])
-                .unwrap()
-        })
-        .sum();
+        let next = ops[offset + 1..]
+            .iter()
+            .position(|&b| !b.is_ascii_whitespace());
 
-    let p2 = nums_p2
-        .split(|&x| x == 0)
-        .enumerate()
-        .map(|(op_idx, nums)| {
-            nums.iter()
-                .map(|num| num)
-                .copied()
-                .reduce(ops[op_idx])
-                .unwrap()
-        })
-        .sum();
+        let width = next.unwrap_or(ops.len() - offset - 1);
+
+        p1 += (0..height)
+            .map(|y| {
+                nums[offset + y * line_width..offset + y * line_width + width]
+                    .iter()
+                    .fold(0, from_digits)
+            })
+            .reduce(op)
+            .unwrap();
+
+        p2 += (0..width)
+            .map(|x| {
+                input
+                    .iter()
+                    .skip(offset + x)
+                    .step_by(line_width)
+                    .fold(0, from_digits)
+            })
+            .reduce(op)
+            .unwrap();
+
+        offset += width + 1;
+    }
 
     (p1, p2)
+}
+
+fn from_digits(acc: usize, b: &u8) -> usize {
+    match b {
+        b'0'..=b'9' => acc * 10 + (b - b'0') as usize,
+        _ => acc,
+    }
 }
 
 fn main() {
@@ -64,5 +61,5 @@ fn main() {
     aoc25::bench(|| run(IN));
 }
 
-const EX: &str = include_str!("../../inputs/d06.ex");
-const IN: &str = include_str!("../../inputs/d06.in");
+const EX: &[u8] = include_bytes!("../../inputs/d06.ex");
+const IN: &[u8] = include_bytes!("../../inputs/d06.in");
