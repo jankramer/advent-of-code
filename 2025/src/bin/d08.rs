@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 fn run(input: &str, n: usize) -> (usize, usize) {
     let coords: Vec<[usize; 3]> = input
@@ -11,38 +12,39 @@ fn run(input: &str, n: usize) -> (usize, usize) {
         })
         .collect();
 
-    let mut distances: Vec<_> = coords
+    let mut distances: BinaryHeap<_> = coords
         .iter()
         .enumerate()
         .flat_map(|(idx_a, a)| coords.iter().skip(idx_a + 1).map(move |b| (a, b)))
-        .map(|(a, b)| (distance(a, b) as usize, a, b))
+        .map(|(a, b)| Reverse((distance(a, b) as usize, a, b)))
         .collect();
 
-    distances.sort_unstable();
-
-    let mut cliques: Vec<HashSet<&[usize; 3]>> =
+    let mut clusters: Vec<HashSet<&[usize; 3]>> =
         coords.iter().map(|c| HashSet::from_iter([c])).collect();
 
     let mut mapping: HashMap<&[usize; 3], usize> =
-        (0..cliques.len()).map(|c| (&coords[c], c)).collect();
+        (0..clusters.len()).map(|c| (&coords[c], c)).collect();
 
-    let mut empty_cliques = HashSet::<usize>::default();
+    let mut empty = HashSet::<usize>::default();
 
     let mut p1 = 0;
-    for (i, (_, coords_a, coords_b)) in distances.into_iter().enumerate() {
+
+    let mut i = 0;
+    while let Some(Reverse((_, coords_a, coords_b))) = distances.pop() {
         if i == n {
-            let mut lengths = cliques.iter().map(|c| c.len()).collect::<Vec<_>>();
+            let mut lengths = clusters.iter().map(|c| c.len()).collect::<Vec<_>>();
             lengths.sort_unstable();
             p1 = lengths.iter().rev().take(3).product();
         }
 
         if mapping[coords_a] == mapping[coords_b] {
+            i += 1;
             continue;
         }
 
-        empty_cliques.insert(mapping[coords_b]);
+        empty.insert(mapping[coords_b]);
 
-        let [a, b] = cliques
+        let [a, b] = clusters
             .get_disjoint_mut([mapping[coords_a], mapping[coords_b]])
             .unwrap();
 
@@ -51,9 +53,11 @@ fn run(input: &str, n: usize) -> (usize, usize) {
             mapping.insert(foo, mapping[coords_a]);
         }
 
-        if empty_cliques.len() == cliques.len() - 1 {
+        if empty.len() == clusters.len() - 1 {
             return (p1, coords_a[0] * coords_b[0]);
         }
+
+        i += 1;
     }
 
     unreachable!()
