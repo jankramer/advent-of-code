@@ -1,3 +1,5 @@
+pub mod matrix;
+
 use std::fmt::Display;
 
 pub fn print<P1: Display, P2: Display>((p1, p2): (P1, P2)) {
